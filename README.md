@@ -1,107 +1,97 @@
-<p align="center"><code>npm i -g @openai/codex</code><br />or <code>brew install --cask codex</code></p>
+# Codex Ledger CLI
 
-<p align="center"><strong>Codex CLI</strong> is a coding agent from OpenAI that runs locally on your computer.
-</br>
-</br>If you want Codex in your code editor (VS Code, Cursor, Windsurf), <a href="https://developers.openai.com/codex/ide">install in your IDE</a>
-</br>If you are looking for the <em>cloud-based agent</em> from OpenAI, <strong>Codex Web</strong>, go to <a href="https://chatgpt.com/codex">chatgpt.com/codex</a></p>
+Codex Ledger refactors the original Codex developer agent into a finance-first command line assistant for bookkeepers, controllers and founders of small businesses. The CLI runs locally, keeps all bookkeeping data inside your working directory and automates the repetitive steps of double-entry accounting: importing bank statements, applying categorisation rules, preparing VAT returns and locking fiscal periods.
 
-<p align="center">
-  <img src="./.github/codex-cli-splash.png" alt="Codex CLI splash" width="80%" />
-  </p>
+## Quick start
 
----
-
-## Quickstart
-
-### Installing and running Codex CLI
-
-Install globally with your preferred package manager. If you use npm:
-
-```shell
-npm install -g @openai/codex
+```bash
+npm install -g @openai/codex-ledger
+codex init --company "Sample BV" --country NL --currency EUR
+codex import bank --file ./data/rabobank.csv
+codex rules add --account 4000 --counterparty NS --vat-rate LOW --memo "Rail travel"
+codex book --period Q1-2025
+codex report p&l --period Q1-2025
+codex vat prepare --period Q1-2025
+codex close --period Q1-2025
 ```
 
-Alternatively, if you use Homebrew:
+The CLI stores all configuration, imports and journals in a versionable `.ledger/` folder so you can commit the entire history to Git.
 
-```shell
-brew install --cask codex
+## Core capabilities
+
+- **Guided ledger initialisation** – `codex init` provisions a Dutch-friendly chart of accounts, VAT profiles and policies that you can tailor in `./.ledger/ledger.yml`.
+- **Statement ingestion** – `codex import bank` accepts CSV exports (Rabobank, ING, bunq, etc.) and fingerprints every row to prevent double uploads.
+- **Rule-based booking** – `codex rules add` lets you define deterministic categorisation logic (counterparty, description, amount ranges, direction) that is replayed by `codex book`.
+- **Double-entry engine** – Booking creates balanced journal entries with VAT breakdowns, using the bank account configured in `ledger.yml`.
+- **Live status dashboards** – `codex status` highlights pending transactions, rule coverage and recent journal entries.
+- **Regulatory outputs** – `codex report p&l` produces human-readable profit and loss statements, while `codex vat prepare` summarises input/output tax per VAT rate.
+- **Period governance** – `codex close` locks fiscal windows and records an immutable audit entry; exports include JSON snapshots plus optional audit trails via `codex export`.
+
+## Data model overview
+
+The configuration file `./.ledger/ledger.yml` uses clear keys:
+
+```yaml
+company:
+  name: Sample BV
+  country: NL
+  currency: EUR
+vat:
+  profile_id: NL-2025
+  rates:
+    - id: HIGH
+      label: High 21%
+      percentage: 0.21
+      on_sales_account: 1610
+      on_purchases_account: 1600
+accounts:
+  bank_account_code: "1000"
+chart_of_accounts:
+  - code: "1000"
+    name: Bank
+    type: asset
+    role: bank
+  - code: "4000"
+    name: Travel expenses
+    type: expense
+    vat_rate: LOW
 ```
 
-Then simply run `codex` to get started:
+Bank transactions, rules and journal entries are persisted as JSON files in the same directory:
 
-```shell
-codex
-```
+- `bank-transactions.json` – raw imports with provenance and booking status.
+- `rules.json` – deterministic categorisation rules with memo templates and VAT hints.
+- `journal.json` – double-entry postings referencing the originating transaction and rule.
+- `audit.log` – append-only trail of significant operations (initialisation, imports, bookings, closures, exports).
 
-If you're running into upgrade issues with Homebrew, see the [FAQ entry on brew upgrade codex](./docs/faq.md#brew-update-codex-isnt-upgrading-me).
+## Command reference
 
-<details>
-<summary>You can also go to the <a href="https://github.com/openai/codex/releases/latest">latest GitHub Release</a> and download the appropriate binary for your platform.</summary>
+| Command | Purpose |
+| --- | --- |
+| `codex init` | Create a ledger skeleton with chart of accounts, VAT rates, policies and starter rules. |
+| `codex status` | Summarise company metadata, totals, pending transactions and recent journal activity. |
+| `codex import bank --file` | Load CSV bank statements into the staging area, deduplicated by fingerprint. |
+| `codex rules add` / `codex rules list` | Maintain categorisation logic for auto-booking. |
+| `codex book --period` | Apply rules to staged transactions and generate journal entries (dry-run supported). |
+| `codex report p&l --period` | Produce profit & loss statements with account-level breakdowns. |
+| `codex vat prepare --period` | Aggregate input and output VAT per rate, ready for submission. |
+| `codex close --period` | Lock a fiscal period (optional `--force`) and record an audit snapshot. |
+| `codex export --out` | Export configuration, bank data, journal and optional audit log as JSON. |
 
-Each GitHub Release contains many executables, but in practice, you likely want one of these:
+## Documentation
 
-- macOS
-  - Apple Silicon/arm64: `codex-aarch64-apple-darwin.tar.gz`
-  - x86_64 (older Mac hardware): `codex-x86_64-apple-darwin.tar.gz`
-- Linux
-  - x86_64: `codex-x86_64-unknown-linux-musl.tar.gz`
-  - arm64: `codex-aarch64-unknown-linux-musl.tar.gz`
+Comprehensive finance-oriented docs are available under [`docs/ledger/`](./docs/ledger/):
 
-Each archive contains a single entry with the platform baked into the name (e.g., `codex-x86_64-unknown-linux-musl`), so you likely want to rename it to `codex` after extracting it.
+- [`overview.md`](./docs/ledger/overview.md) – product tour, architecture and key concepts.
+- [`workflows.md`](./docs/ledger/workflows.md) – end-to-end walkthroughs for importing, booking and closing a quarter.
+- [`configuration.md`](./docs/ledger/configuration.md) – advanced settings for charts of accounts, VAT extensions and policies.
+- [`integrations.md`](./docs/ledger/integrations.md) – bank export formats, OCR tips and how to hook up external systems.
+- [`security.md`](./docs/ledger/security.md) – data retention, encryption recommendations and audit practices.
 
-</details>
+## Contributing
 
-### Using Codex with your ChatGPT plan
-
-<p align="center">
-  <img src="./.github/codex-cli-login.png" alt="Codex CLI login" width="80%" />
-  </p>
-
-Run `codex` and select **Sign in with ChatGPT**. We recommend signing into your ChatGPT account to use Codex as part of your Plus, Pro, Team, Edu, or Enterprise plan. [Learn more about what's included in your ChatGPT plan](https://help.openai.com/en/articles/11369540-codex-in-chatgpt).
-
-You can also use Codex with an API key, but this requires [additional setup](./docs/authentication.md#usage-based-billing-alternative-use-an-openai-api-key). If you previously used an API key for usage-based billing, see the [migration steps](./docs/authentication.md#migrating-from-usage-based-billing-api-key). If you're having trouble with login, please comment on [this issue](https://github.com/openai/codex/issues/1243).
-
-### Model Context Protocol (MCP)
-
-Codex can access MCP servers. To configure them, refer to the [config docs](./docs/config.md#mcp_servers).
-
-### Configuration
-
-Codex CLI supports a rich set of configuration options, with preferences stored in `~/.codex/config.toml`. For full configuration options, see [Configuration](./docs/config.md).
-
----
-
-### Docs & FAQ
-
-- [**Getting started**](./docs/getting-started.md)
-  - [CLI usage](./docs/getting-started.md#cli-usage)
-  - [Running with a prompt as input](./docs/getting-started.md#running-with-a-prompt-as-input)
-  - [Example prompts](./docs/getting-started.md#example-prompts)
-  - [Custom prompts](./docs/prompts.md)
-  - [Memory with AGENTS.md](./docs/getting-started.md#memory-with-agentsmd)
-  - [Configuration](./docs/config.md)
-- [**Sandbox & approvals**](./docs/sandbox.md)
-- [**Authentication**](./docs/authentication.md)
-  - [Auth methods](./docs/authentication.md#forcing-a-specific-auth-method-advanced)
-  - [Login on a "Headless" machine](./docs/authentication.md#connecting-on-a-headless-machine)
-- **Automating Codex**
-  - [GitHub Action](https://github.com/openai/codex-action)
-  - [TypeScript SDK](./sdk/typescript/README.md)
-  - [Non-interactive mode (`codex exec`)](./docs/exec.md)
-- [**Advanced**](./docs/advanced.md)
-  - [Tracing / verbose logging](./docs/advanced.md#tracing--verbose-logging)
-  - [Model Context Protocol (MCP)](./docs/advanced.md#model-context-protocol-mcp)
-- [**Zero data retention (ZDR)**](./docs/zdr.md)
-- [**Contributing**](./docs/contributing.md)
-- [**Install & build**](./docs/install.md)
-  - [System Requirements](./docs/install.md#system-requirements)
-  - [DotSlash](./docs/install.md#dotslash)
-  - [Build from source](./docs/install.md#build-from-source)
-- [**FAQ**](./docs/faq.md)
-- [**Open source fund**](./docs/open-source-fund.md)
-
----
+Pull requests, test scenarios and localisation improvements are welcome. Please read [`docs/ledger/contributing.md`](./docs/ledger/contributing.md) for coding standards, release cadence and roadmap guidelines tailored to the accounting refactor.
 
 ## License
 
-This repository is licensed under the [Apache-2.0 License](LICENSE).
+Codex Ledger CLI is released under the [Apache-2.0 License](./LICENSE).
